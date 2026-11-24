@@ -1,7 +1,7 @@
 # Direct-Mapped Cache Controller
 
 Verilog RTL + testbench for a **direct-mapped, read-only cache** with a
-behavioral main-memory model. Simulates three access patterns and reports
+behavioral main-memory model. Simulates four access patterns and reports
 hit/miss statistics and AMAT.
 
 ## Configuration
@@ -91,12 +91,13 @@ Regenerate with: `./run.sh && python3 tools/plot_wave.py cache.vcd docs/waveform
 
 ## Results
 
-| Phase       | Accesses | Hits | Misses | Hit ratio | AMAT (cyc) | Locality tested |
-|-------------|----------|------|--------|-----------|------------|-----------------|
-| SEQUENTIAL  | 64       | 48   | 16     | 0.750     | 3.50       | Spatial         |
-| REPEATED    | 40       | 36   | 4      | 0.900     | 2.00       | Temporal        |
-| RANDOM      | 200      | 2    | 198    | 0.010     | 10.90      | None            |
-| **Overall** | 304      | 86   | 218    | ~0.28     | ~8.2       | —               |
+| Phase       | Accesses | Hits | Misses | Hit ratio | Miss ratio | AMAT (cyc) | Behavior tested      |
+|-------------|----------|------|--------|-----------|------------|------------|----------------------|
+| SEQUENTIAL  | 64       | 48   | 16     | 0.750     | 0.250      | 3.500      | Spatial locality     |
+| REPEATED    | 40       | 36   | 4      | 0.900     | 0.100      | 2.000      | Temporal locality    |
+| RANDOM      | 200      | 2    | 198    | 0.010     | 0.990      | 10.900     | Poor locality        |
+| CONFLICT    | 4        | 0    | 4      | 0.000     | 1.000      | 11.000     | Same-index eviction  |
+| **Overall** | 308      | 86   | 222    | 0.279     | 0.721      | 8.208      | —                    |
 
 **Reading the results**
 
@@ -107,6 +108,9 @@ Regenerate with: `./run.sh && python3 tools/plot_wave.py cache.vcd docs/waveform
 - **Random** → addresses scatter across 64 KB with no reuse, so nearly every
   access is a conflict/cold miss. Shows a cache gives no benefit without
   locality (AMAT ≈ raw miss penalty).
+- **Conflict** → `0x000` and `0x400` are 1024 bytes apart and map to index 0
+  with different tags. Alternating between them evicts the previous block,
+  so both revisits miss even though the workload reuses just two blocks.
 
 ## Deliverables mapping
 
@@ -114,7 +118,7 @@ Regenerate with: `./run.sh && python3 tools/plot_wave.py cache.vcd docs/waveform
 |----------------------|-------|
 | Cache RTL            | `rtl/cache_controller.v`, `rtl/main_memory.v` |
 | Controller FSM       | FSM in `cache_controller.v` (IDLE/COMPARE/ALLOCATE) |
-| Memory-access trace  | Generated in `tb/tb_cache.v` (seq/random/repeated) |
+| Memory-access trace  | Generated in `tb/tb_cache.v` (sequential/repeated/random/conflict) |
 | Hit/miss report      | Simulation stdout (table above) |
 | AMAT calculation     | `tb/tb_cache.v` `phase_report` task |
 | Synthesis results    | See *Synthesis* below |

@@ -1,10 +1,11 @@
 // =====================================================================
 // tb_cache.v - Testbench for the direct-mapped cache controller
 // =====================================================================
-// Drives three access patterns and reports hit/miss stats + AMAT:
+// Drives four access patterns and reports hit/miss stats + AMAT:
 //   1. SEQUENTIAL : walk ascending addresses (spatial locality)
-//   2. RANDOM     : pseudo-random addresses (poor locality)
-//   3. REPEATED   : small working set hit over and over (temporal)
+//   2. REPEATED   : small working set hit over and over (temporal)
+//   3. RANDOM     : pseudo-random addresses (poor locality)
+//   4. CONFLICT   : alternate blocks that map to the same cache line
 //
 // Self-contained: traces generated in-TB, no external files.
 // =====================================================================
@@ -153,6 +154,22 @@ module tb_cache;
             do_access(rnd[15:0]);        // 64 KB address window
         end
         phase_report("RANDOM");
+
+        // ========================================================
+        // PHASE 4: CONFLICT misses (direct-mapped eviction)
+        //   0x000 and 0x400 share index 0 but have different tags.
+        //   Alternating between them makes each revisit a miss.
+        // ========================================================
+        phase_begin;
+        do_access(32'h0000_0000);
+        do_access(`CACHE_SIZE);
+        do_access(32'h0000_0000);
+        do_access(`CACHE_SIZE);
+        phase_report("CONFLICT");
+        if ((stat_accesses - base_acc) !== 32'd4 ||
+            (stat_hits - base_hit) !== 32'd0 ||
+            (stat_misses - base_miss) !== 32'd4)
+            $fatal(1, "CONFLICT: expected four accesses and four misses");
 
         // ========================================================
         // OVERALL
